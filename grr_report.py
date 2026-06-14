@@ -51,8 +51,8 @@ def main():
     parser.add_argument("csv", help="输入 CSV 数据文件路径")
     parser.add_argument("-o", "--output", default=None,
                         help="输出 PDF 文件路径 (默认: 与输入同名的 .pdf)")
-    parser.add_argument("--trials", type=int, default=4,
-                        help="每个操作员-零件组合使用的试验次数 (默认: 4)")
+    parser.add_argument("--trials", type=int, default=3,
+                        help="每个操作员-零件组合使用的试验次数 (默认: 3，行业标准)")
     parser.add_argument("--part-col", default=None,
                         help="Part/DUT 列名 (默认: 自动检测)")
     parser.add_argument("--appraiser-col", default=None,

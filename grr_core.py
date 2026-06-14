@@ -267,10 +267,14 @@ def compute_grr_anova(
         #   - var_ev = ms_within（始终，不做 pooling）
         #   - var_av/var_pv 始终以 ms_interaction 为基准
         #   - IV 仅当 ms_interaction > ms_within 时非零
+        #   - 当 ms_part < ms_interaction 时，降级使用 ms_within 为基准
+        #     以匹配 COSMO 对 Part 分量更宽容的处理方式
         var_ev = ms_within
         var_iv = max((ms_interaction - ms_within) / n, 0) if ms_interaction > ms_within else 0.0
         var_av = max((ms_operator - ms_interaction) / (n_parts * n), 0)
-        var_pv = max((ms_part - ms_interaction) / (n_ops * n), 0)
+        var_pv_full = (ms_part - ms_interaction) / (n_ops * n)
+        var_pv_fallback = max((ms_part - ms_within) / (n_ops * n), 0) if ms_part > ms_within else 0.0
+        var_pv = max(var_pv_full, 0) if var_pv_full > 0 else var_pv_fallback
 
     # 标准差
     ev = np.sqrt(var_ev)
@@ -526,7 +530,7 @@ def parse_cosmo_csv(
                 try:
                     ul = float(ul_val)
                     ll = float(ll_val)
-                    # 匹配 COSMO 原版行为：不过滤任何 UL/LL 值（包括 999.0 占位符）
+                    # 不过滤，让用户在 Test Items 标签页中手动筛选
                     spec_limits[col] = (ul, ll)
                 except (ValueError, TypeError):
                     pass

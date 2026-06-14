@@ -238,18 +238,28 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
     n_ops = len(operators)
     n_parts = len(parts_list)
 
-    # 零件标签：SN 太长会溢出，截取关键尾部
+    # 零件标签：SN 太长则保留头尾，中间省略
     short_labels = []
     for p in parts_list:
         s = str(p)
-        if len(s) > 10:
-            short_labels.append(s[-8:])
+        if len(s) > 12:
+            short_labels.append(s[:6] + ".." + s[-4:])
+        elif len(s) > 10:
+            short_labels.append(s[:5] + ".." + s[-3:])
         else:
             short_labels.append(s)
 
+    # 计算所有数据的 y 范围，为散点图统一添加 20% 边距（匹配 COSMO 风格）
+    all_vals = raw["value"].values
+    y_min, y_max = all_vals.min(), all_vals.max()
+    y_range = y_max - y_min
+    y_pad = y_range * 0.2 if y_range > 0 else 0.02
+    y_lo = y_min - y_pad
+    y_hi = y_max + y_pad
+
     try:
         fig, axes = plt.subplots(2, 2, figsize=(9, 7.8))
-        fig.subplots_adjust(hspace=0.55, wspace=0.35, left=0.09, right=0.96, top=0.92, bottom=0.18)
+        fig.subplots_adjust(hspace=0.55, wspace=0.35, left=0.09, right=0.96, top=0.92, bottom=0.20)
 
         # ── 1. Scatter by Part (左上) ──
         ax = axes[0, 0]
@@ -268,11 +278,15 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Part", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
-        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+        # 自动格式：根据数据范围自动选择小数位数（修复小数值显示 0.00 的问题）
+        ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8)
+        ax.set_xlabel("Part", fontsize=6.5, color=MPL_TITLE)
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -293,11 +307,15 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Appraiser", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_xticks(range(n_ops))
         ax.set_xticklabels([str(o) for o in operators], fontsize=6.5)
         ax.tick_params(axis="y", labelsize=6.5)
-        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+        # 自动格式：根据数据范围自动选择小数位数
+        ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8)
+        ax.set_xlabel("Appraiser", fontsize=6.5, color=MPL_TITLE)
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -316,37 +334,43 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
 
         ax.set_title("Scatter by Part and Appraiser", fontsize=8, fontweight="bold",
                      color=MPL_TITLE, pad=3)
+        ax.set_ylim(y_lo, y_hi)
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
-        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+        # 自动格式：根据数据范围自动选择小数位数
+        ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8, ncol=2)
+        ax.set_xlabel("Part", fontsize=6.5, color=MPL_TITLE)
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
         # ── 4. Contribution (右下) ──
         ax = axes[1, 1]
-        labels = ["Equipment", "Appraiser", "Interaction", "Part"]
-        values = [result.pct_ev, result.pct_av, result.pct_iv, result.pct_pv]
+        labels = ["Equipment", "Appraiser", "Interaction", "Part", "NdR"]
+        raw_values = [result.pct_ev, result.pct_av, result.pct_iv, result.pct_pv, result.pct_rr]
+        # 显示时 clamp 负值到 0（COSMO 风格：负方差分量不显示）
+        values = [max(v, 0) for v in raw_values]
 
         y_pos = range(len(labels))
-        bars = ax.barh(y_pos, values, color=CONTRIB_COLORS, height=0.55,
+        bars = ax.barh(y_pos, values, color=CONTRIB_COLORS + ["#4682B4"], height=0.55,
                        edgecolor="white", linewidth=0.5)
 
-        # 在条形图右侧标注百分比
+        # 在条形图右侧标注百分比（始终显示，包括 0 值）
         for i, (v, bar) in enumerate(zip(values, bars)):
-            ax.text(v + 0.5, bar.get_y() + bar.get_height() / 2,
-                    f"{v:.1f}%", va="center", fontsize=6.5, fontweight="bold",
+            ax.text(max(v, 0) + max(values) * 0.02 + 0.5, bar.get_y() + bar.get_height() / 2,
+                    f"{v:.2f}%", va="center", fontsize=6.5, fontweight="bold",
                     color=MPL_TITLE)
 
         ax.set_yticks(y_pos)
         ax.set_yticklabels(labels, fontsize=6.5)
         ax.set_title("Contribution", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
-        ax.set_xlabel("%", fontsize=6.5)
+        ax.set_xlabel("% of Total Variance", fontsize=6.5)
         ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
         ax.tick_params(axis="x", labelsize=6)
         ax.invert_yaxis()
-        ax.set_xlim(0, max(values) * 1.25 if max(values) > 0 else 100)
+        ax.set_xlim(0, max(max(values) * 1.15, 105))
         ax.grid(True, axis="x", alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -380,8 +404,8 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
     PAGE_W = 186 * mm
 
     # ── 标题行 ──
-    ul_str = f"{result.ul:.1f}" if result.ul != float('inf') else "---"
-    ll_str = f"{result.ll:.1f}" if result.ll != float('-inf') else "---"
+    ul_str = f"{result.ul:.3f}" if result.ul != float('inf') else "---"
+    ll_str = f"{result.ll:.3f}" if result.ll != float('-inf') else "---"
     els.append(Paragraph(
         f"{result.name}  (UL:{ul_str}  LL:{ll_str})",
         ParagraphStyle("IT", fontSize=10, textColor=colors.black,
@@ -478,9 +502,9 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
     # 计算数据列总数
     n_data_cols = sum(len(t) for t in trials_per_op)
     # Unit 列宽根据内容长度动态计算
-    # 最长 Unit 名一般在 10~18 字符，按 3mm/字符估算，最小 30mm 最大 50mm
+    # 最长 Unit 名一般在 10~18 字符，按 3mm/字符估算，最小 35mm 最大 70mm
     max_unit_len = max((len(str(p)) for p in dm.index), default=10)
-    unit_col_w = min(max(max_unit_len * 2.2 * mm, 30 * mm), 50 * mm)
+    unit_col_w = min(max(max_unit_len * 2.2 * mm, 35 * mm), 70 * mm)
     # 剩余宽度均分给数据列
     data_col_w = (PAGE_W - unit_col_w) / n_data_cols if n_data_cols > 0 else 15 * mm
 
@@ -500,7 +524,7 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
         vals = []
         for col_name in dm.columns:
             v = row_data[col_name]
-            vals.append(f"{v:.3f}" if pd.notna(v) else "")
+            vals.append(f"{v:.4f}" if pd.notna(v) else "")
         data_rows.append([str(part_name)] + vals)
 
     matrix_rows = [op_row, trial_row] + data_rows

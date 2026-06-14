@@ -195,6 +195,49 @@ TRANSLATIONS = {
     # Part column 候选
     "dut_id": "零件ID",
     "part_id": "零件ID",
+
+    # ═══ 专用翻译（不重复定义已在上面出现的条目）
+    "Base Data": "基础数据",
+    "Selected Data": "选中数据",
+    "Units:": "Units：",
+    "Appraisers:": "Appraisers：",
+    "Trials:": "Trials：",
+    "Columns:": "列数：",
+    "Test Items:": "测试项：",
+    "Select Units": "选择Units",
+    "Select Appraisers": "选择Appraisers",
+    "Settings applied.": "设置已应用。",
+    "GRR complete (ANOVA):": "GRR完成 (ANOVA)：",
+    "GRR complete (Range):": "GRR完成 (Range)：",
+    "Please run GRR analysis first.": "请先运行GRR分析。",
+    "Please load a CSV file first.": "请先加载CSV文件。",
+    "No data after filtering.": "筛选后无数据。",
+    "Filter applied:": "筛选已应用：",
+    "Loaded:": "已加载：",
+    "Running GRR analysis (": "正在运行GRR分析 (",
+    "Generating PDF...": "正在生成PDF...",
+    "Generating Consistency Report PDF...": "正在生成一致性报告PDF...",
+    "OK": "确定",
+    "Cancel": "取消",
+    "Done": "完成",
+    "Error": "错误",
+    "Warning": "警告",
+    "Information": "信息",
+    "Save": "保存",
+    "Open": "打开",
+    "Dashboard connection setting": "仪表盘连接设置",
+    "bigbird ip:": "bigbird IP：",
+    "bigbird port:": "bigbird 端口：",
+    "Product Family:": "产品系列：",
+    "Product Type:": "产品类型：",
+    "Input Product:": "输入产品：",
+    "get station list": "获取工位列表",
+    "get msa id list": "获取MSA ID列表",
+    "get dashboard data": "获取仪表盘数据",
+    "convert to cosmo csv": "转换为COSMO CSV",
+    "grr": "GRR",
+    "repeatability": "重复性",
+    "reproducibility": "再现性",
 }
 
 # 反向翻译表（中文→英文），自动生成
@@ -735,7 +778,7 @@ class CosmoApp(tk.Tk):
         # 原始数据列表（左侧 — 可用测项）
         src_frame = _TkStyle.frame(body)
         src_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        _TkStyle.label(src_frame, text="原始数据",
+        _TkStyle.label(src_frame, text="Source",
                        font=FONT_TITLE).pack(fill=tk.X)
         src_inner = _TkStyle.frame(src_frame)
         src_inner.pack(fill=tk.BOTH, expand=True)
@@ -753,10 +796,10 @@ class CosmoApp(tk.Tk):
         mid.pack_propagate(False)
         spacer = _TkStyle.frame(mid)
         spacer.pack(fill=tk.Y, expand=True)
-        for txt, cmd in [("全部添加",       self._ti_add_all),
-                          ("添加 >>>",       self._ti_add_sel),
-                          ("<<< 移除",    self._ti_remove_sel),
-                          ("全部移除",    self._ti_remove_all)]:
+        for txt, cmd in [("Add All",       self._ti_add_all),
+                          ("Add >>>",       self._ti_add_sel),
+                          ("<<< Remove",    self._ti_remove_sel),
+                          ("Remove All",    self._ti_remove_all)]:
             _TkStyle.button(mid, text=txt, command=cmd,
                             width=12).pack(pady=3)
         _TkStyle.frame(mid).pack(fill=tk.Y, expand=True)
@@ -764,7 +807,7 @@ class CosmoApp(tk.Tk):
         # 已选测项（右侧 — 用户选择的测项 + UL/LL）
         loaded_frame = _TkStyle.frame(body)
         loaded_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        _TkStyle.label(loaded_frame, text="已选测项",
+        _TkStyle.label(loaded_frame, text="Loaded",
                        font=FONT_TITLE).pack(fill=tk.X)
 
         cols = ("Item", "UL", "LL")
@@ -825,7 +868,7 @@ class CosmoApp(tk.Tk):
             try:
                 new_val = float(entry.get().strip())
                 vals = list(item)
-                vals[col_idx] = f"{new_val:.1f}"
+                vals[col_idx] = f"{new_val:.3f}"
                 self._ti_loaded_tree.item(row_id, values=tuple(vals))
                 # 更新 item_limits
                 item_name = vals[0]
@@ -871,10 +914,10 @@ class CosmoApp(tk.Tk):
 
     @staticmethod
     def _fmt_limit(val: float) -> str:
-        """格式化规格限：+/-999999 显示为 "∞"，正常值保留1位小数"""
+        """格式化规格限：+/-999999 显示为 "∞"，正常值保留3位小数"""
         if val is None or (isinstance(val, float) and (val == 999999.0 or val == -999999.0 or val != val)):
             return "∞"
-        return f"{val:.1f}"
+        return f"{val:.3f}"
 
     def _add_to_loaded(self, item_name):
         ul, ll = self._item_limits.get(item_name, (999999.0, -999999.0))
@@ -995,6 +1038,12 @@ class CosmoApp(tk.Tk):
         ab_row("Number of units:",       "_ab_units_var")
         ab_row("Number of appraisers:",  "_ab_appraisers_var")
         ab_row("Number of trials:",      "_ab_trials_var")
+        # 可用 trial 提示
+        hint_row = _TkStyle.frame(left)
+        hint_row.pack(fill=tk.X, padx=6, pady=(0, 4))
+        self._lbl_avail_trials = tk.Label(hint_row, text="", bg=BG_SIDEBAR, fg="#6B5B4F",
+                                          font=("Segoe UI", 8), anchor=tk.E)
+        self._lbl_avail_trials.pack(side=tk.RIGHT)
 
         # GRR Settings
         section_title(left, "GRR Settings")
@@ -1922,10 +1971,11 @@ class CosmoApp(tk.Tk):
             grp = self._df.dropna(subset=[self._part_col, self._appr_col])
             trials = grp.groupby([self._part_col, self._appr_col]).size()
             t_min = int(trials.min()) if len(trials) > 0 else 0
-            t_use = min(t_min, 3) if t_min > 0 else 0  # COSMO uses 3 trials
+            t_use = 3  # 默认 3（行业标准），用户可根据测试计划手动修改
             self._set_label(self._lbl_base_trials, str(t_min))
             self._set_label(self._lbl_sel_trials, str(t_use))
             self._ab_trials_var.set(str(t_use))
+            self._refresh_avail_trials_hint(t_min)
 
         # 刷新 Test Items
         n_items = len(self._selected_items) if self._selected_items else len(self._all_items)
@@ -2001,10 +2051,11 @@ class CosmoApp(tk.Tk):
             grp = df.dropna(subset=[self._part_col, self._appr_col])
             trials = grp.groupby([self._part_col, self._appr_col]).size()
             t_min = int(trials.min()) if len(trials) > 0 else 0
-            t_use = min(t_min, 3) if t_min > 0 else 0  # COSMO uses 3 trials
+            t_use = 3  # 默认 3（行业标准），用户可根据测试计划手动修改
             self._set_label(self._lbl_base_trials, str(t_min))
             self._set_label(self._lbl_sel_trials,  str(t_use))
             self._ab_trials_var.set(str(t_use))
+            self._refresh_avail_trials_hint(t_min)
 
         n_items = len(self._selected_items) if self._selected_items else len(self._all_items)
         self._set_label(self._lbl_sel_test_items,  str(n_items))
@@ -2197,14 +2248,14 @@ class CosmoApp(tk.Tk):
                 headers = ["#", "Item", "%rr", "%ev", "%av", "%iv", "%pv", "ev", "av", "iv", "pv", "tv", "Rating"]
                 w = csv_mod.writer(f)
                 w.writerow(headers)
-                for i, r in enumerate(self._report.results, 0):
+                for i, r in enumerate(self._report.results, 1):
                     w.writerow([i, r.name, r.pct_rr, r.pct_ev, r.pct_av, r.pct_iv, r.pct_pv,
                                 r.ev, r.av, r.iv, r.pv, r.tv, r.rating])
             else:
                 headers = ["#", "Item", "Tolerance", "%rr/Tol", "%ev/Tol", "%av/Tol", "%iv/Tol", "%pv/Tol", "Rating"]
                 w = csv_mod.writer(f)
                 w.writerow(headers)
-                for i, r in enumerate(self._report.results, 0):
+                for i, r in enumerate(self._report.results, 1):
                     tol = r.tolerance
                     # 使用已存储的 pct_tol 值（已按用户选择的 study_const 计算）
                     pct_rr_t = f"{r.pct_tol:.4f}" if r.pct_tol else ""
@@ -2548,6 +2599,11 @@ class CosmoApp(tk.Tk):
     # ── 辅助 ──
     def _set_label(self, lbl, text):
         lbl.config(text=text)
+
+    def _refresh_avail_trials_hint(self, t_min):
+        """更新 trials 输入框下方的可用 trial 提示"""
+        if hasattr(self, '_lbl_avail_trials') and self._lbl_avail_trials:
+            self._lbl_avail_trials.config(text=f"可用: {t_min}")
 
     def _update_preview_treeview(self, df):
         """用 Treeview 显示 DataFrame 预览，支持水平滚动"""
