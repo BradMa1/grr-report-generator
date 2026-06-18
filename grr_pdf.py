@@ -187,6 +187,20 @@ def _build_summary(report: GrrReport) -> list:
         cmds.append(("TEXTCOLOR", (5, i), (5, i), fg))
         cmds.append(("FONTNAME", (5, i), (5, i), "Helvetica-Bold"))
 
+    # GRR 列 (第2列，index 2) 颜色显示逻辑：进入 Marginal (GRR>20) 才标
+    for i, r in enumerate(report.results, 1):
+        grr_val = r.grr_study
+        if grr_val > 30:
+            # Poor — 红色背景 + 红字加粗
+            cmds.append(("BACKGROUND", (2, i), (2, i), colors.HexColor("#fadbd8")))
+            cmds.append(("TEXTCOLOR", (2, i), (2, i), C_POOR))
+            cmds.append(("FONTNAME", (2, i), (2, i), "Helvetica-Bold"))
+        elif grr_val > 20:
+            # Marginal — 橙色背景 + 橙字加粗
+            cmds.append(("BACKGROUND", (2, i), (2, i), colors.HexColor("#fdebd0")))
+            cmds.append(("TEXTCOLOR", (2, i), (2, i), C_MARGINAL))
+            cmds.append(("FONTNAME", (2, i), (2, i), "Helvetica-Bold"))
+
     sum_table.setStyle(TableStyle(cmds))
     els.append(sum_table)
 
@@ -238,16 +252,16 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
     n_ops = len(operators)
     n_parts = len(parts_list)
 
-    # 零件标签：SN 太长则保留头尾，中间省略
+    # 零件标签：优先显示完整 SN，过长时再截取
     short_labels = []
     for p in parts_list:
         s = str(p)
-        if len(s) > 12:
-            short_labels.append(s[:6] + ".." + s[-4:])
-        elif len(s) > 10:
-            short_labels.append(s[:5] + ".." + s[-3:])
+        if len(s) > 30:
+            short_labels.append(s[:15] + ".." + s[-13:])
+        elif len(s) > 24:
+            short_labels.append(s[:12] + ".." + s[-10:])
         else:
-            short_labels.append(s)
+            short_labels.append(s)  # 优先显示完整 SN
 
     # 计算所有数据的 y 范围，为散点图统一添加 20% 边距（匹配 COSMO 风格）
     all_vals = raw["value"].values
@@ -278,7 +292,9 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Part", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
+        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
         ax.set_ylim(y_lo, y_hi)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
@@ -307,7 +323,9 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Appraiser", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
+        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
         ax.set_ylim(y_lo, y_hi)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
         ax.set_xticks(range(n_ops))
         ax.set_xticklabels([str(o) for o in operators], fontsize=6.5)
         ax.tick_params(axis="y", labelsize=6.5)
@@ -334,7 +352,9 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
 
         ax.set_title("Scatter by Part and Appraiser", fontsize=8, fontweight="bold",
                      color=MPL_TITLE, pad=3)
+        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
         ax.set_ylim(y_lo, y_hi)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
@@ -354,7 +374,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         values = [max(v, 0) for v in raw_values]
 
         y_pos = range(len(labels))
-        bars = ax.barh(y_pos, values, color=CONTRIB_COLORS + ["#4682B4"], height=0.55,
+        bars = ax.barh(y_pos, values, color="#3498db", height=0.55,  # 统一蓝色（匹配 COSMO 原版）
                        edgecolor="white", linewidth=0.5)
 
         # 在条形图右侧标注百分比（始终显示，包括 0 值）
@@ -367,6 +387,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         ax.set_yticklabels(labels, fontsize=6.5)
         ax.set_title("Contribution", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
         ax.set_xlabel("% of Total Variance", fontsize=6.5)
+        ax.xaxis.set_major_locator(mticker.MultipleLocator(10))  # 刻度间距=10（匹配 COSMO 原版）
         ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
         ax.tick_params(axis="x", labelsize=6)
         ax.invert_yaxis()
