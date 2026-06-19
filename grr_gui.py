@@ -55,11 +55,11 @@ TAG_MARGINAL  = "#F5CBA7"  # 中橙底 + 深橙字  (20-30%)
 TAG_POOR      = "#F1948A"  # 中红底 + 深红字  (>30%)
 
 # 字体
-FONT_UI    = ("Segoe UI", 9)
-FONT_LABEL = ("Segoe UI", 9)
-FONT_BTN   = ("Segoe UI", 9)
-FONT_TITLE = ("Segoe UI", 9, "bold")
-FONT_MONO  = ("Consolas", 8)
+FONT_UI    = ("Segoe UI", 10)
+FONT_LABEL = ("Segoe UI", 10)
+FONT_BTN   = ("Segoe UI", 10)
+FONT_TITLE = ("Segoe UI", 10, "bold")
+FONT_MONO  = ("Consolas", 9)
 
 # ════════════════════════════════════════════════════════════════
 #  语言翻译表 — English → 简体中文
@@ -231,10 +231,6 @@ TRANSLATIONS = {
     "Product Family:": "产品系列：",
     "Product Type:": "产品类型：",
     "Input Product:": "输入产品：",
-    "get station list": "获取工位列表",
-    "get msa id list": "获取MSA ID列表",
-    "get dashboard data": "获取仪表盘数据",
-    "convert to cosmo csv": "转换为COSMO CSV",
     "grr": "GRR",
     "repeatability": "重复性",
     "reproducibility": "再现性",
@@ -549,18 +545,12 @@ class CosmoApp(tk.Tk):
         sep()
         for txt, cmd in [("Run",                    self._run_grr),
                           ("Export as CSV",          self._export_csv),
-                          ("Export as PDF",          self._export_pdf)]:
+                          ("Export as PDF",          self._export_pdf),
+                          ("Export Consistency",     self._export_consistency_pdf)]:
             _TkStyle.button(panel, text=txt, command=cmd,
                             width=16).pack(fill=tk.X, padx=6, pady=2)
 
-        sep()
-        l = tk.Label(panel, text="Consistency:", bg=BG_SIDEBAR, fg=C_TITLE,
-                     font=FONT_TITLE, anchor=tk.W)
-        l.pack(fill=tk.X, padx=6, pady=(6, 1))
-        _TkStyle.button(panel, text="Export Consistency\nReport PDF",
-                        command=self._export_consistency_pdf, width=16).pack(fill=tk.X, padx=6, pady=2)
-
-    # ══════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════
     #  Notebook — 4 个标签页
     # ══════════════════════════════════════════════════
     def _build_notebook(self):
@@ -1003,12 +993,6 @@ class CosmoApp(tk.Tk):
         self._an_frame = f = ttk.Frame(self._notebook, style="Cosmo.TFrame")
         self._notebook.add(f, text="Analysis")
 
-        # Tab 标题栏
-        tab_bar = _TkStyle.frame(f)
-        tab_bar.pack(fill=tk.X, padx=8, pady=(4, 0))
-        _TkStyle.button(tab_bar, text="GRR", relief=tk.SUNKEN,
-                        padx=12).pack(side=tk.LEFT)
-
         # 内容区域
         body = _TkStyle.frame(f)
         body.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
@@ -1042,21 +1026,11 @@ class CosmoApp(tk.Tk):
         hint_row = _TkStyle.frame(left)
         hint_row.pack(fill=tk.X, padx=6, pady=(0, 4))
         self._lbl_avail_trials = tk.Label(hint_row, text="", bg=BG_SIDEBAR, fg="#6B5B4F",
-                                          font=("Segoe UI", 8), anchor=tk.E)
+                                          font=("Segoe UI", 9), anchor=tk.E)
         self._lbl_avail_trials.pack(side=tk.RIGHT)
 
         # GRR Settings
         section_title(left, "GRR Settings")
-        _TkStyle.label(left, text="GRR Method",
-                       font=FONT_TITLE).pack(fill=tk.X, padx=6, pady=(2, 0))
-
-        method_frame = _TkStyle.frame(left)
-        method_frame.pack(fill=tk.X, padx=6, pady=1)
-        for i, val in enumerate(["ANOVA", "ANOVA Main Effect", "Range"]):
-            rb = _TkStyle.radiobutton(method_frame, text=val,
-                                      variable=self._grr_method_var, value=val)
-            rb.pack(anchor=tk.W, padx=4, pady=1)
-
         sigma_row = _TkStyle.frame(left)
         sigma_row.pack(fill=tk.X, padx=6, pady=(6, 0))
         _TkStyle.label(sigma_row, text="Sigma:", width=12,
@@ -1189,11 +1163,6 @@ class CosmoApp(tk.Tk):
 
         right_top = _TkStyle.frame(top)
         right_top.pack(side=tk.RIGHT)
-
-        _TkStyle.button(right_top, text="Export as CSV",
-                        command=self._export_csv, padx=8).pack(side=tk.LEFT, padx=(0, 4))
-        _TkStyle.button(right_top, text="Export as PDF",
-                        command=self._export_pdf, padx=8).pack(side=tk.LEFT, padx=(0, 12))
 
         for val in ["%Variance", "%Tolerance"]:
             _TkStyle.radiobutton(right_top, text=f"Show {val}",
@@ -1417,21 +1386,10 @@ class CosmoApp(tk.Tk):
         cb = ttk.Combobox(btn_row1, textvariable=self._db_station_var,
                           values=[], state="readonly", width=14)
         cb.pack(side=tk.LEFT)
-        for txt in ["get station list", "get msa id list"]:
-            _TkStyle.button(btn_row1, text=txt, command=self._noop,
-                            padx=6).pack(side=tk.LEFT, padx=(4, 0))
 
-        btn_row2 = _TkStyle.frame(panel)
-        btn_row2.pack(fill=tk.X, pady=(2, 0))
-        for txt in ["get dashboard data", "convert to cosmo csv"]:
-            _TkStyle.button(btn_row2, text=txt, command=self._noop,
-                            padx=6).pack(side=tk.LEFT, padx=(0, 4))
-
-    # ══════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════
     #  核心功能
     # ══════════════════════════════════════════════════
-    def _noop(self):
-        pass
 
     # ── Settings 导入/导出 ──
     def _export_settings(self):
@@ -2281,8 +2239,8 @@ class CosmoApp(tk.Tk):
                 from grr_pdf import generate_pdf
                 self._status("Generating PDF...")
                 generate_pdf(self._report, path)
-                self.after(0, lambda: self._status(f"PDF saved: {os.path.basename(path)}"))
-                self.after(0, lambda: messagebox.showinfo("Done", f"PDF saved:\n{path}"))
+                self.after(0, lambda: self._status("PDF report generated successfully!"))
+                self.after(0, lambda: messagebox.showinfo("Done", f"PDF report generated successfully!\n\n{path}"))
             except Exception as e:
                 import traceback
                 self.after(0, lambda: messagebox.showerror("PDF Error", traceback.format_exc()))
@@ -2305,8 +2263,8 @@ class CosmoApp(tk.Tk):
                 from grr_pdf import generate_consistency_pdf
                 self._status("Generating Consistency Report PDF...")
                 generate_consistency_pdf(self._report, path)
-                self.after(0, lambda: self._status(f"Consistency PDF saved: {os.path.basename(path)}"))
-                self.after(0, lambda: messagebox.showinfo("Done", f"Consistency PDF saved:\n{path}"))
+                self.after(0, lambda: self._status("Consistency report generated successfully!"))
+                self.after(0, lambda: messagebox.showinfo("Done", f"Consistency report generated successfully!\n\n{path}"))
             except Exception as e:
                 import traceback
                 self.after(0, lambda: messagebox.showerror("PDF Error", traceback.format_exc()))
@@ -2325,13 +2283,20 @@ class CosmoApp(tk.Tk):
             messagebox.showwarning("No JSON Files", f"No .json files found in:\n{folder}")
             return
 
-        # 保存目标 CSV
+        # 保存目标 CSV（检查文件名冲突）
         folder_name = os.path.basename(folder) or "grr_data"
+        base_name = folder_name
+        safe_name = base_name
+        counter = 1
+        parent_dir = os.path.dirname(folder)
+        while os.path.exists(os.path.join(parent_dir, f"{safe_name}.csv")):
+            safe_name = f"{base_name}_{counter}"
+            counter += 1
         dst = filedialog.asksaveasfilename(
             title=f"Save combined CSV ({len(srcs)} JSON files)",
             defaultextension=".csv",
             filetypes=[("CSV", "*.csv")],
-            initialfile=f"{folder_name}.csv")
+            initialfile=f"{safe_name}.csv")
         if not dst:
             return
 
