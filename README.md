@@ -29,6 +29,9 @@
 - **CSV 导出** — 将 GRR 分析结果导出为 CSV
 - **一致性报告** — 导出测量一致性分析 PDF
 - **4 种图表** — 每项详情页含散点图（按零件/按评价人/交互）+ 方差贡献图
+- **统一 Results 表** — grr/rr/%rr 合并为单个紧凑表格，左对齐+数值居中
+- **自适应 Y 轴刻度** — 根据数据范围动态计算步进，避免刻度稀疏或缺失
+- **深色图表配色** — 提高阅读对比度，坐标轴标题黑色更清晰
 
 ### 数据兼容性
 - **自动列检测** — 自动识别 `operator_id`、`dut_id`、测量列
@@ -162,7 +165,14 @@ python3 grr_gui.py
 | **Method** | 选择分析方法（ANOVA / ANOVA Main Effect / Range） |
 | **Output Format** | 选择输出格式：P/T (%Tol) 或 Study Var (%TV) |
 | **Study Const** | 选择安全系数：6.0 (COSMO) 或 5.15 (AIAG) |
-| **操作按钮** | Run（运行分析）、Export as CSV、Export as PDF、Export Consistency Report PDF |
+### 操作按钮
+
+| 按钮 | 功能 |
+|------|------|
+| **Run** | 运行 GRR 分析 |
+| **Export as CSV** | 导出分析结果为 CSV |
+| **Export as PDF** | 生成并保存 COSMO 风格 PDF 报告 |
+| **Export Consistency Report PDF** | 生成并保存一致性分析 PDF 报告 |
 
 ### 语言切换
 
@@ -282,8 +292,8 @@ $$\%TV = \frac{\sigma_{GRR} \times K}{Total\ Variation} \times 100\%$$
   - **Scatter by Appraiser** — 按评价人分组的测量值散点图
   - **Scatter by Part and Appraiser** — 交互作用散点图
   - **Contribution** — 方差分量贡献百分比柱状图
-- **Results 表**：完整方差分量数据（标准差 + 百分比）
-- **Data 矩阵**：原始测量数据排列（Units × Trials × Appraisers）
+- **Results 表**：完整方差分量数据（合并统一表，grr/rr/%rr 三合一紧凑布局）
+- **Data 矩阵**：原始测量数据排列（Units × Trials × Appraisers，自适应字体与小数位）
 - **页码**：Page X / Y
 
 ---
@@ -345,9 +355,13 @@ grr-reporter/
 
 **A**: 在 GUI 的 Test Items 标签页中，可以手动输入每项的 UL 和 LL 值，也可以从 JSON 文件导入。
 
-### Q: 支持 Mac/Windows/Linux 吗？
+### Q: 第二次导出 PDF 时卡住了怎么办？
+
+**A**: 这是 matplotlib 全局状态在多次调用后未清理导致的。已修复：每次导出 PDF 后自动清理 matplotlib 内部缓存和图形对象。如果仍遇到卡顿，请确保 `matplotlib.use("Agg")` 模式启用（GUI 导出已内置此设置）。
 
 **A**: 支持 Python 3.10+ 的所有平台。GUI 基于 tkinter（Python 标准库），无需额外安装。
+
+### Q: 支持 Mac/Windows/Linux 吗？
 
 ---
 

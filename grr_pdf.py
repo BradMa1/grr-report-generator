@@ -22,6 +22,7 @@ GRR PDF 报告生成模块 — COSMO 2.5.2e 风格
 """
 
 import io
+import math
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -44,7 +45,7 @@ from grr_core import GrrReport, GrrResult
 C_TITLE     = colors.HexColor("#1a5276")   # 标题深蓝
 C_HEADER_BG = colors.HexColor("#3498db")   # 表头/信息头浅蓝背景
 C_HEADER_FG = colors.white                 # 表头文字白色
-C_ROW_ALT   = colors.HexColor("#f2f6fa")   # 交替行色
+C_ROW_ALT   = colors.HexColor("#d6e4f0")   # 加深交替行色
 C_ROW_WHITE = colors.white
 C_EXCELLENT = colors.HexColor("#2ecc71")   # Excellent 绿色
 C_GOOD      = colors.HexColor("#3498db")   # Good 蓝色
@@ -57,14 +58,14 @@ C_GRID      = colors.HexColor("#d5dbdb")
 # ── Matplotlib 配色 (十六进制字符串) ──
 MPL_TITLE     = "#1a5276"
 MPL_HEADER_BG = "#3498db"
-MPL_RED       = "#e74c3c"
-MPL_GREEN     = "#2ecc71"
-MPL_BLUE      = "#2980b9"
-MPL_ORANGE    = "#f39c12"
+MPL_RED       = "#c0392b"
+MPL_GREEN     = "#1e8449"
+MPL_BLUE      = "#1a5276"
+MPL_ORANGE    = "#d35400"
 
-# ── 图表配色 ──
-CHART_COLORS = ["#2980b9", "#e74c3c", "#2ecc71", "#f39c12", "#8e44ad", "#1abc9c"]
-CONTRIB_COLORS = ["#3498db", "#2ecc71", "#f39c12", "#e74c3c"]  # Equipment, Appraiser, Interaction, Part
+# ── 图表配色（加深，提高对比度）──
+CHART_COLORS = ["#1a5276", "#c0392b", "#1e8449", "#d35400", "#6c3483", "#117a65"]
+CONTRIB_COLORS = ["#2471a3", "#1e8449", "#d35400", "#c0392b"]
 
 
 def _rating_color(rating: str):
@@ -74,10 +75,10 @@ def _rating_color(rating: str):
 
 def _rating_bg(rating: str):
     """Result 列背景色"""
-    return {"Excellent": colors.HexColor("#d5f5e3"),
-            "Good": colors.HexColor("#d6eaf8"),
-            "Marginal": colors.HexColor("#fdebd0"),
-            "Poor": colors.HexColor("#fadbd8")}.get(rating, colors.white)
+    return {"Excellent": colors.HexColor("#abebc6"),
+            "Good": colors.HexColor("#aed6f1"),
+            "Marginal": colors.HexColor("#f9e79f"),
+            "Poor": colors.HexColor("#f5b7b1")}.get(rating, colors.white)
 
 
 def _op_sort_key(x):
@@ -211,6 +212,26 @@ def _build_summary(report: GrrReport) -> list:
 # 详情页 — 4 图表
 # ══════════════════════════════════════════════════════════════════
 
+def _auto_y_ticks(ax, y_lo, y_hi):
+    """根据数据范围自动选择合理的 Y 轴刻度间距，确保显示足够刻度"""
+    y_range = y_hi - y_lo
+    # 目标：显示 5~7 个刻度
+    target_steps = 6
+    raw_step = y_range / target_steps
+    # 取整到美观的数值（1/2/5 系列的 10^n 倍）
+    magnitude = 10 ** math.floor(math.log10(max(raw_step, 1e-10)))
+    norm = raw_step / magnitude
+    if norm < 1.5:
+        tick_step = 1 * magnitude
+    elif norm < 3:
+        tick_step = 2 * magnitude
+    elif norm < 7:
+        tick_step = 5 * magnitude
+    else:
+        tick_step = 10 * magnitude
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(tick_step))
+
+
 def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
     """生成 COSMO 风格 4 图表 (2×2 布局)"""
     # 从 data_matrix 重建原始数据
@@ -283,7 +304,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 continue
             x_jitter = np.random.uniform(-0.2, 0.2, len(vals)) if len(vals) > 1 else [0]
             ax.scatter([pi] * len(vals) + x_jitter, vals,
-                       alpha=0.6, s=18, color=CHART_COLORS[0], edgecolors="white", linewidth=0.3)
+                       alpha=0.7, s=20, color=CHART_COLORS[0], edgecolors="white", linewidth=0.3)
 
         # 每个零件的均值线
         part_means = [raw[raw["part"] == p]["value"].mean() for p in parts_list]
@@ -292,17 +313,16 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Part", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
-        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
+        ax.set_ylabel(result.name, fontsize=6.5, color="black")  # 测项名称
         ax.set_ylim(y_lo, y_hi)
-        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
+        _auto_y_ticks(ax, y_lo, y_hi)
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
-        # 自动格式：根据数据范围自动选择小数位数（修复小数值显示 0.00 的问题）
         ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
         ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8)
-        ax.set_xlabel("Part", fontsize=6.5, color=MPL_TITLE)
+        ax.set_xlabel("Part", fontsize=6.5, color="black")
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -314,7 +334,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 continue
             x_jitter = np.random.uniform(-0.2, 0.2, len(vals)) if len(vals) > 1 else [0]
             ax.scatter([oi] * len(vals) + x_jitter, vals,
-                       alpha=0.6, s=18, color=CHART_COLORS[oi % len(CHART_COLORS)],
+                       alpha=0.7, s=20, color=CHART_COLORS[oi % len(CHART_COLORS)],
                        edgecolors="white", linewidth=0.3)
 
         op_means = [raw[raw["operator"] == o]["value"].mean() for o in operators]
@@ -323,9 +343,9 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
                 markeredgewidth=1.2, zorder=5, label="Mean")
 
         ax.set_title("Scatter by Appraiser", fontsize=8, fontweight="bold", color=MPL_TITLE, pad=3)
-        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
+        ax.set_ylabel(result.name, fontsize=6.5, color="black")  # 测项名称
         ax.set_ylim(y_lo, y_hi)
-        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
+        _auto_y_ticks(ax, y_lo, y_hi)
         ax.set_xticks(range(n_ops))
         ax.set_xticklabels([str(o) for o in operators], fontsize=6.5)
         ax.tick_params(axis="y", labelsize=6.5)
@@ -333,7 +353,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
         ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8)
-        ax.set_xlabel("Appraiser", fontsize=6.5, color=MPL_TITLE)
+        ax.set_xlabel("Appraiser", fontsize=6.5, color="black")
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -352,9 +372,9 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
 
         ax.set_title("Scatter by Part and Appraiser", fontsize=8, fontweight="bold",
                      color=MPL_TITLE, pad=3)
-        ax.set_ylabel(result.name, fontsize=6.5, color=MPL_TITLE)  # 测项名称
+        ax.set_ylabel(result.name, fontsize=6.5, color="black")  # 测项名称
         ax.set_ylim(y_lo, y_hi)
-        ax.yaxis.set_major_locator(mticker.MultipleLocator(5))  # 刻度间距=5
+        _auto_y_ticks(ax, y_lo, y_hi)
         ax.set_xticks(range(n_parts))
         ax.set_xticklabels(short_labels, fontsize=6, rotation=0, ha="center")
         ax.tick_params(axis="y", labelsize=6.5)
@@ -362,7 +382,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
         ax.yaxis.get_major_formatter().set_useOffset(False)
         ax.legend(fontsize=5.5, loc="upper right", framealpha=0.8, ncol=2)
-        ax.set_xlabel("Part", fontsize=6.5, color=MPL_TITLE)
+        ax.set_xlabel("Part", fontsize=6.5, color="black")
         ax.grid(True, alpha=0.25, linestyle="--")
         ax.set_axisbelow(True)
 
@@ -374,7 +394,7 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         values = [max(v, 0) for v in raw_values]
 
         y_pos = range(len(labels))
-        bars = ax.barh(y_pos, values, color="#3498db", height=0.55,  # 统一蓝色（匹配 COSMO 原版）
+        bars = ax.barh(y_pos, values, color="#2471a3", height=0.55,  # 加深蓝色提高对比度
                        edgecolor="white", linewidth=0.5)
 
         # 在条形图右侧标注百分比（始终显示，包括 0 值）
@@ -396,9 +416,11 @@ def _make_detail_charts(result: GrrResult, dm: pd.DataFrame):
         ax.set_axisbelow(True)
 
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150,
-                    facecolor="white", edgecolor="none")
-        plt.close(fig)
+        try:
+            fig.savefig(buf, format="png", dpi=150,
+                        facecolor="white", edgecolor="none")
+        finally:
+            plt.close(fig)
         buf.seek(0)
         return buf
 
@@ -449,17 +471,19 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
                            spaceAfter=4, leading=12)))
         els.append(Spacer(1, 3 * mm))
 
-    # ── Results 区块 (COSMO 风格: 三个独立紧凑表格) ──
+    # ── Results 区块 (COSMO 风格: 三个独立紧凑表格，左对齐) ──
     els.append(Paragraph(
         "Results:", ParagraphStyle("RL", fontSize=9, fontName="Helvetica-Bold",
                                    textColor=colors.black, spaceAfter=3, leading=13)))
 
-    # 共享样式：紧凑网格表格
-    _grid_style = [
+    # 每个单元格固定宽度，表格自然紧凑 + 左对齐
+    _cw = 26 * mm   # 单元格宽度（约能放下 "reproducibility" / "0.000"）
+    _gs = [
         ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
@@ -472,10 +496,9 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
         ["grr", "repeatability", "reproducibility"],
         [f"{result.grr_study:.3f}", f"{result.repeat_study:.3f}", f"{result.reprod_study:.3f}"],
     ]
-    t1_w = (PAGE_W - 14 * mm) / 3
-    t1 = Table(t1_data, colWidths=[t1_w] * 3)
-    t1s = list(_grid_style)
-    t1s += [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
+    t1 = Table(t1_data, colWidths=[_cw] * 3)
+    t1.hAlign = "LEFT"
+    t1s = list(_gs) + [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
     t1.setStyle(TableStyle(t1s))
     els.append(t1)
     els.append(Spacer(1, 3 * mm))
@@ -486,10 +509,9 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
         [f"{result.rr:.3f}", f"{result.ev:.3f}", f"{result.av:.3f}",
          f"{result.iv:.3f}", f"{result.pv:.3f}", f"{result.tv:.3f}"],
     ]
-    t2_w = (PAGE_W - 14 * mm) / 6
-    t2 = Table(t2_data, colWidths=[t2_w] * 6)
-    t2s = list(_grid_style)
-    t2s += [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
+    t2 = Table(t2_data, colWidths=[_cw] * 6)
+    t2.hAlign = "LEFT"
+    t2s = list(_gs) + [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
     t2.setStyle(TableStyle(t2s))
     els.append(t2)
     els.append(Spacer(1, 3 * mm))
@@ -501,10 +523,9 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
          f"{result.pct_av:.3f}", f"{result.pct_iv:.3f}",
          f"{result.pct_pv:.3f}"],
     ]
-    t3_w = (PAGE_W - 14 * mm) / 5
-    t3 = Table(t3_data, colWidths=[t3_w] * 5)
-    t3s = list(_grid_style)
-    t3s += [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
+    t3 = Table(t3_data, colWidths=[_cw] * 5)
+    t3.hAlign = "LEFT"
+    t3s = list(_gs) + [("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
     t3.setStyle(TableStyle(t3s))
     els.append(t3)
     els.append(Spacer(1, 5 * mm))
@@ -539,13 +560,14 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
     for trials in trials_per_op:
         trial_row.extend(trials)
 
-    # 数据行
+    # 数据行 — 根据列数自适应小数位数
+    data_prec = 3 if n_data_cols > 20 else 4
     data_rows = []
     for part_name, row_data in dm.iterrows():
         vals = []
         for col_name in dm.columns:
             v = row_data[col_name]
-            vals.append(f"{v:.4f}" if pd.notna(v) else "")
+            vals.append(f"{v:.{data_prec}f}" if pd.notna(v) else "")
         data_rows.append([str(part_name)] + vals)
 
     matrix_rows = [op_row, trial_row] + data_rows
@@ -566,21 +588,35 @@ def _build_detail(report: GrrReport, result: GrrResult, idx: int) -> list:
                                 textColor=colors.black, spaceAfter=3, leading=13)))
 
     mtable = Table(matrix_rows, colWidths=m_cw)
+    mtable.hAlign = "LEFT"
+    # 根据列数自适应字体大小和间距
+    if n_data_cols > 20:
+        data_fsz = 5.5
+        data_pad = 1.5
+        data_lr_pad = 1.5
+    elif n_data_cols > 15:
+        data_fsz = 6
+        data_pad = 2
+        data_lr_pad = 2
+    else:
+        data_fsz = 7.5
+        data_pad = 2.5
+        data_lr_pad = 3
     m_style = [
         # 表头行 — 黑字白底，加粗
         ("FONTNAME", (0, 0), (-1, 1), "Helvetica-Bold"),
         ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
         # 数据行
         ("FONTNAME", (0, 2), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
-        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("FONTSIZE", (0, 0), (-1, -1), data_fsz),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),   # 数据值居中
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),        # Unit 列左对齐
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), data_pad),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), data_pad),
+        ("LEFTPADDING", (0, 0), (-1, -1), data_lr_pad),
+        ("RIGHTPADDING", (0, 0), (-1, -1), data_lr_pad),
     ]
     # 添加 Operator SPAN
     m_style.extend(op_spans)

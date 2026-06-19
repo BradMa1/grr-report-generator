@@ -2235,14 +2235,22 @@ class CosmoApp(tk.Tk):
         def _worker():
             try:
                 import os
+                import matplotlib
                 os.environ["MPLCONFIGDIR"] = "/tmp/mpl_grr"
+                matplotlib.use("Agg")
                 from grr_pdf import generate_pdf
                 self._status("Generating PDF...")
                 generate_pdf(self._report, path)
+                # 清理 matplotlib 全局状态，避免第二次运行卡住
+                matplotlib.pyplot.close("all")
+                import gc
+                gc.collect()
                 self.after(0, lambda: self._status("PDF report generated successfully!"))
                 self.after(0, lambda: messagebox.showinfo("Done", f"PDF report generated successfully!\n\n{path}"))
             except Exception as e:
                 import traceback
+                import matplotlib
+                matplotlib.pyplot.close("all")
                 self.after(0, lambda: messagebox.showerror("PDF Error", traceback.format_exc()))
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -2259,14 +2267,21 @@ class CosmoApp(tk.Tk):
         def _worker():
             try:
                 import os
+                import matplotlib
                 os.environ["MPLCONFIGDIR"] = "/tmp/mpl_grr"
+                matplotlib.use("Agg")
                 from grr_pdf import generate_consistency_pdf
                 self._status("Generating Consistency Report PDF...")
                 generate_consistency_pdf(self._report, path)
+                matplotlib.pyplot.close("all")
+                import gc
+                gc.collect()
                 self.after(0, lambda: self._status("Consistency report generated successfully!"))
                 self.after(0, lambda: messagebox.showinfo("Done", f"Consistency report generated successfully!\n\n{path}"))
             except Exception as e:
                 import traceback
+                import matplotlib
+                matplotlib.pyplot.close("all")
                 self.after(0, lambda: messagebox.showerror("PDF Error", traceback.format_exc()))
         threading.Thread(target=_worker, daemon=True).start()
 
