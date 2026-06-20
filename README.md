@@ -326,10 +326,6 @@ grr-reporter/
 ├── run.sh              # macOS/Linux 一键启动脚本
 ├── LICENSE             # MIT 许可证
 ├── .gitignore          # Git 忽略规则
-└── samples/            # 示例数据
-    ├── 123.csv
-    ├── SA-BUTTON#2-GRR.csv
-    └── README.md
 ```
 
 ### 核心模块说明
