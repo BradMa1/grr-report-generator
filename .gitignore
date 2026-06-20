@@ -28,5 +28,4 @@ Thumbs.db
 # matplotlib cache
 /tmp/mpl_grr/
 
-# macOS bundle
-GRR Reporter.app/
+# macOS bundles — keep generic launcher for cloning users
