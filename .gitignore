@@ -27,3 +27,6 @@ Thumbs.db
 
 # matplotlib cache
 /tmp/mpl_grr/
+
+# macOS bundle
+GRR Reporter.app/
