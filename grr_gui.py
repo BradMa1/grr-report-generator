@@ -66,7 +66,7 @@ FONT_MONO  = ("Consolas", 9)
 # ════════════════════════════════════════════════════════════════
 TRANSLATIONS = {
     # 菜单
-    "Load": "加载CSV",
+    "Load": "加载",
     "Test Items": "测试项目",
     "Analysis": "分析设置",
     "Results": "分析结果",
@@ -75,8 +75,8 @@ TRANSLATIONS = {
     "Method:": "分析方法：",
     "Output Format:": "输出格式：",
     "P/T (%Tol)": "P/T (%公差)",
-    "Study Var (%TV)": "Study Var (%TV)",
-    "Study Const:": "Study Const：",
+    "Study Var (%TV)": "研究变异 (%TV)",
+    "Study Const:": "研究常数：",
     "6.0 (COSMO)": "6.0 (COSMO)",
     "5.15 (AIAG)": "5.15 (AIAG)",
     "Run": "运行分析",
@@ -98,6 +98,7 @@ TRANSLATIONS = {
     "Load Limits from CSV": "从CSV加载规格限",
     "COSMO row format (UL/LL in first 3 rows)": "COSMO格式（前三行UL/LL）",
     "Outcome Settings": "结果项设置",
+    "Outcome Selection": "结果选择",
     "JSON to CSV": "JSON转CSV",
     "Dashboard Connection": "仪表盘连接",
     "Import Settings": "导入设置",
@@ -108,8 +109,6 @@ TRANSLATIONS = {
     # Test Items 标签页
     "Filter:": "筛选：",
     "Clear Filter": "清除筛选",
-    "原始数据": "Source",
-    "已选测项": "Loaded",
     "Source": "原始数据",
     "Loaded": "已选测项",
     "Item": "项目",
@@ -117,10 +116,6 @@ TRANSLATIONS = {
     "LL": "下限",
     "UL_new": "上限(新)",
     "LL_new": "下限(新)",
-    "全部添加": "Add All",
-    "添加 >>>": "Add >>>",
-    "<<< 移除": "<<< Remove",
-    "全部移除": "Remove All",
     "Add All": "全部添加",
     "Add >>>": "添加 >>>",
     "<<< Remove": "<<< 移除",
@@ -134,7 +129,11 @@ TRANSLATIONS = {
     "Clear Selection": "清除选择",
     "Select Data for Analysis": "选择分析数据",
     "GRR Method": "GRR方法",
+    "ANOVA": "ANOVA",
+    "ANOVA Main Effect": "ANOVA 主效应",
+    "Range": "极差法",
     "Autobin Settings": "自动分箱设置",
+    "Auto Bin\nAppraisers": "自动分箱\n检验员",
     "Number of units:": "Units数量：",
     "Number of appraisers:": "Appraiser数量：",
     "Number of trials:": "Trials数量：",
@@ -144,8 +143,6 @@ TRANSLATIONS = {
     "GRR": "GRR",
 
     # Results 标签页
-    "Export as CSV": "导出CSV",
-    "Export as PDF": "导出PDF",
     "Show %Variance": "显示%方差",
     "Show %Tolerance": "显示%公差",
     "#": "#",
@@ -164,11 +161,6 @@ TRANSLATIONS = {
     "reprod_study": "reprod(P/T)",
     "grr_study": "GRR(P/T)",
     "ndc": "ndc",
-    "pct_rr": "%rr",
-    "pct_ev": "%ev",
-    "pct_av": "%av",
-    "pct_iv": "%iv",
-    "pct_pv": "%pv",
 
     # 弹出对话框
     "Load GRR State": "加载GRR状态",
@@ -181,22 +173,18 @@ TRANSLATIONS = {
     "Save CSV": "保存CSV",
     "CSV": "CSV",
 
-    # Appraiser column 候选
-    "operator_id": "检验员ID",
+    # Appraiser column 候选（中文值必须唯一，否则反向翻译会丢失）
+    "operator_id": "操作员ID",
     "appraiser_id": "检验员ID",
 
-    # 语言切换
-    "🌐 Language": "🌐 语言",
-    "English": "English",
-    "简体中文": "简体中文",
-    "Language": "语言",
-    "Select Language": "选择语言",
+    # 语言切换按钮
+    "🌐 EN": "🌐 中文",
 
-    # Part column 候选
-    "dut_id": "零件ID",
+    # Part column 候选（中文值必须唯一）
+    "dut_id": "DUT编号",
     "part_id": "零件ID",
 
-    # ═══ 专用翻译（不重复定义已在上面出现的条目）
+    # ═══ 专用翻译（右侧面板 + 状态消息等）
     "Base Data": "基础数据",
     "Selected Data": "选中数据",
     "Units:": "Units：",
@@ -231,9 +219,9 @@ TRANSLATIONS = {
     "Product Family:": "产品系列：",
     "Product Type:": "产品类型：",
     "Input Product:": "输入产品：",
-    "grr": "GRR",
     "repeatability": "重复性",
     "reproducibility": "再现性",
+    "grr": "grr",
 }
 
 # 反向翻译表（中文→英文），自动生成
@@ -393,6 +381,33 @@ class CosmoApp(tk.Tk):
                             nh = TRANSLATIONS_REV.get(h, h)
                         if nh != h:
                             w.heading(col, text=nh)
+                except Exception:
+                    pass
+
+            # ttk.Combobox values 翻译
+            if isinstance(w, ttk.Combobox):
+                try:
+                    vals = w.cget("values")
+                    if vals:
+                        if self._lang == "zh":
+                            new_vals = tuple(TRANSLATIONS.get(v, v) for v in vals)
+                        else:
+                            new_vals = tuple(TRANSLATIONS_REV.get(v, v) for v in vals)
+                        if new_vals != vals:
+                            w.configure(values=new_vals)
+                        # 同步 textvariable 的当前值
+                        try:
+                            var = w.cget("textvariable")
+                            if var:
+                                current = str(var.get())
+                                if self._lang == "zh":
+                                    new_val = TRANSLATIONS.get(current, current)
+                                else:
+                                    new_val = TRANSLATIONS_REV.get(current, current)
+                                if new_val != current:
+                                    var.set(new_val)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
 

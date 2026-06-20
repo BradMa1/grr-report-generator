@@ -729,10 +729,11 @@ def generate_consistency_pdf(report: GrrReport, output_path: str):
                 row.extend([r_s, status])
             rows.append(row)
 
-        # 列宽
+        # 列宽：Part 列按最长的 SN 自适应，Op 列均分剩余空间
         n_op_cols = len(ops) * 2
-        part_w = max(30 * mm, 186 * mm / (n_op_cols + 1) * 1.5)
-        op_w = (186 * mm - part_w) / n_op_cols
+        max_part_len = max((len(str(p)) for p in parts), default=20)
+        part_w = min(max_part_len * 3.2 * mm + 8 * mm, 80 * mm)   # ~3.2mm/char + 填充，上限80mm
+        op_w = max((PAGE_W - 24 * mm - part_w) / n_op_cols, 12 * mm)  # 至少12mm
         cw = [part_w] + [op_w] * n_op_cols
 
         ctable = Table(rows, colWidths=cw, repeatRows=1)
