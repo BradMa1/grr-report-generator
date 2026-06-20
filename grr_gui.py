@@ -300,16 +300,13 @@ class CosmoApp(tk.Tk):
         super().__init__()
         self.title("Cosmo v2.5.2e")
         # ── 设置应用图标 ──
-        icon_dir = os.path.dirname(os.path.abspath(__file__))
-        for icon_file in ("grr_icon_16.png", "grr_icon_32.png", "grr_icon_64.png", "grr_icon_128.png"):
-            icon_path = os.path.join(icon_dir, icon_file)
-            if os.path.isfile(icon_path):
-                try:
-                    img = tk.PhotoImage(file=icon_path)
-                    self.iconphoto(True, img)
-                    break
-                except Exception:
-                    continue
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grr_icon_256.png")
+        if os.path.isfile(icon_path):
+            try:
+                img = tk.PhotoImage(file=icon_path)
+                self.iconphoto(True, img)
+            except Exception:
+                pass
         self.configure(bg=BG_MAIN)
         self.resizable(True, True)
         self.geometry("1200x720")
