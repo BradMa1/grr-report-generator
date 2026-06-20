@@ -13,8 +13,74 @@ import csv
 import glob
 import re
 import datetime
+import socket
+import atexit
+import signal
 import pandas as pd
 import numpy as np
+
+# ════════════════════════════════════════════════════════════════
+#  单实例锁 — 防止同时打开多个窗口导致闪退
+# ════════════════════════════════════════════════════════════════
+LOCK_FILE = "/tmp/grr_reporter.lock"
+
+def _acquire_lock():
+    """尝试获取锁，已运行则弹出提示并退出。"""
+    # 检查锁文件是否存在且进程存活
+    if os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE) as f:
+                pid = int(f.read().strip())
+            # 检查进程是否存活 (macOS/Linux)
+            os.kill(pid, 0)  # signal 0 = 仅探测存活
+            print(f"[GRR] 已有实例在运行 (PID={pid})，禁止重复启动。")
+            import tkinter.messagebox as mb
+            root = tk.Tk()
+            root.withdraw()
+            mb.showwarning(
+                "GRR Reporter",
+                f"GRR Reporter 已在运行 (PID={pid})。\n"
+                "请勿重复启动，请切换到已打开的窗口。"
+            )
+            root.destroy()
+            sys.exit(0)
+        except (OSError, ValueError, EOFError):
+            # 进程不存在或锁文件损坏 → 删除旧锁
+            try:
+                os.remove(LOCK_FILE)
+            except OSError:
+                pass
+
+    # 写新锁
+    with open(LOCK_FILE, "w") as f:
+        f.write(str(os.getpid()))
+    print(f"[GRR] 实例锁已获取 (PID={os.getpid()})")
+
+def _release_lock():
+    """程序退出时清理锁文件。"""
+    try:
+        if os.path.exists(LOCK_FILE):
+            with open(LOCK_FILE) as f:
+                pid = int(f.read().strip())
+            if pid == os.getpid():
+                os.remove(LOCK_FILE)
+                print(f"[GRR] 实例锁已释放 (PID={pid})")
+    except (OSError, ValueError):
+        pass
+
+# 启动时获取锁
+_acquire_lock()
+
+# 注册退出清理
+atexit.register(_release_lock)
+
+# 捕获 SIGTERM / SIGINT 确保锁释放
+def _signal_handler(signum, frame):
+    _release_lock()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _signal_handler)
+signal.signal(signal.SIGINT, _signal_handler)
 
 # 新 GRR 引擎
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '.'))
@@ -311,6 +377,9 @@ class CosmoApp(tk.Tk):
         self.resizable(True, True)
         self.geometry("1200x720")
         self.minsize(960, 560)
+
+        # ── 窗口关闭时释放锁 ──
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # ── 共享状态 ──
         self._csv_path        = tk.StringVar()
@@ -2642,6 +2711,11 @@ class CosmoApp(tk.Tk):
 
     def _status(self, msg):
         self.title(f"Cosmo v2.5.2e - {msg}")
+
+    def _on_close(self):
+        """点击关闭窗口时释放锁并退出。"""
+        _release_lock()
+        self.destroy()
 
 
 # ── 入口 ──────────────────────────────────────────────

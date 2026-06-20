@@ -11,8 +11,8 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
-# Suppress matplotlib font cache noise
-export MPLCONFIGDIR="/tmp/mpl_grr"
+# Suppress matplotlib font cache noise — use unique dir per instance
+export MPLCONFIGDIR="/tmp/mpl_grr_$$"
 mkdir -p "$MPLCONFIGDIR"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
