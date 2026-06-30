@@ -48,7 +48,7 @@ C_HEADER_FG = colors.white                 # 表头文字白色
 C_ROW_ALT   = colors.HexColor("#d6e4f0")   # 加深交替行色
 C_ROW_WHITE = colors.white
 C_EXCELLENT = colors.HexColor("#2ecc71")   # Excellent 绿色
-C_GOOD      = colors.HexColor("#3498db")   # Good 蓝色
+C_GOOD      = colors.HexColor("#f4d03f")   # Good 黄色
 C_MARGINAL  = colors.HexColor("#f39c12")   # Marginal 橙色
 C_POOR      = colors.HexColor("#e74c3c")   # Poor 红色
 C_GRAY      = colors.HexColor("#7f8c8d")
@@ -76,7 +76,7 @@ def _rating_color(rating: str):
 def _rating_bg(rating: str):
     """Result 列背景色"""
     return {"Excellent": colors.HexColor("#abebc6"),
-            "Good": colors.HexColor("#aed6f1"),
+            "Good": colors.HexColor("#fcf3cf"),
             "Marginal": colors.HexColor("#f9e79f"),
             "Poor": colors.HexColor("#f5b7b1")}.get(rating, colors.white)
 
